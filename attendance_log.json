@@ -1,16 +1,4 @@
 {
-  "students": [
-    {
-      "student_id": "1234",
-      "name": "KIMUL EDRINE"
-    }
-  ],
-  "attendance": [
-    {
-      "student_id": "1234",
-      "date": "2026-09-21",
-      "status": "Present",
-      "timestamp": "2026-09-21T14:59:16.653986+03:00"
-    }
-  ]
+  "students": [],
+  "attendance": []
 }

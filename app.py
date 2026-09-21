@@ -85,11 +85,11 @@ def students_checked_in_today(today=None, data_file=DATA_FILE):
 
     result = []
     for attendance in data["attendance"]:
-        if attendance["date"] == today:
+        if attendance["date"] == today and attendance["status"] in ("Present", "Late"):
             result.append(
                 {
                     "student_id": attendance["student_id"],
-                    "name": names[attendance["student_id"]],
+                    "name": names.get(attendance["student_id"], attendance["student_id"]),
                     "status": attendance["status"],
                     "timestamp": attendance["timestamp"],
                 }
