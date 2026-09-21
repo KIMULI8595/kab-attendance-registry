@@ -1,8 +1,9 @@
-"""Simple command-line student attendance register."""
-
 import json
 from datetime import date, datetime
+from html import escape
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 
 DATA_FILE = Path(__file__).with_name("attendance_log.json")
@@ -96,48 +97,107 @@ def students_checked_in_today(today=None, data_file=DATA_FILE):
     return sorted(result, key=lambda student: student["timestamp"])
 
 
-def show_today(data_file=DATA_FILE):
-    students = students_checked_in_today(data_file=data_file)
-    if not students:
-        print("No students have been checked in today.")
-        return
+def page(data_file=DATA_FILE, message=""):
+    """Build the small attendance page."""
+    data = load_data(data_file)
+    rows = ""
+    for student in students_checked_in_today(data_file=data_file):
+        rows += (
+            f"<tr><td>{escape(student['name'])}</td>"
+            f"<td>{escape(student['student_id'])}</td>"
+            f"<td>{escape(student['status'])}</td></tr>"
+        )
+    if not rows:
+        rows = "<tr><td colspan='3'>No check-ins today.</td></tr>"
 
-    print("Students checked in today:")
-    for student in students:
-        print(f"- {student['name']} ({student['student_id']}): {student['status']}")
+    options = "".join(
+        f"<option value='{escape(student['student_id'])}'>"
+        f"{escape(student['name'])} ({escape(student['student_id'])})</option>"
+        for student in data["students"]
+    )
+    return f"""<!doctype html>
+<html>
+<head>
+  <title>KAB Attendance Register</title>
+  <style>
+    body {{ font-family: Arial; max-width: 800px; margin: 40px auto; }}
+    form {{ padding: 15px; margin: 15px 0; background: #f1f1f1; }}
+    input, select, button {{ padding: 8px; margin: 4px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
+  </style>
+</head>
+<body>
+  <h1>KAB Student Attendance Register</h1>
+  <p>{escape(message)}</p>
+  <h2>Create student profile</h2>
+  <form method="post" action="/student">
+    <input name="name" placeholder="Student name" required>
+    <input name="student_id" placeholder="Student ID" required>
+    <button type="submit">Create student</button>
+  </form>
+  <h2>Record check-in</h2>
+  <form method="post" action="/check-in">
+    <select name="student_id" required>{options}</select>
+    <select name="status">
+      <option>Present</option>
+      <option>Late</option>
+    </select>
+    <button type="submit">Record attendance</button>
+  </form>
+  <h2>Checked in today</h2>
+  <table>
+    <tr><th>Name</th><th>Student ID</th><th>Status</th></tr>
+    {rows}
+  </table>
+</body>
+</html>"""
 
 
-def run_cli(data_file=DATA_FILE):
-    """Run the roster menu."""
-    while True:
-        print("\n1. Create student profile")
-        print("2. Check in student")
-        print("3. Show today's check-ins")
-        print("0. Exit")
-        choice = input("Choose an option: ").strip()
+def run_web_app(data_file=DATA_FILE, port=8000):
+    """Start the local web application."""
+    class AttendanceHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_page()
 
-        try:
-            if choice == "1":
-                student = create_student(
-                    input("Name: "), input("Student ID: "), data_file
-                )
-                print(f"Created {student['name']}.")
-            elif choice == "2":
-                record = check_in_student(
-                    input("Student ID: "),
-                    input("Status (Present/Late): ") or "Present",
-                    data_file=data_file,
-                )
-                print(f"Recorded {record['status']}.")
-            elif choice == "3":
-                show_today(data_file)
-            elif choice == "0":
-                break
-            else:
-                print("Invalid option.")
-        except (OSError, ValueError) as error:
-            print(f"Error: {error}")
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", 0))
+            form = parse_qs(self.rfile.read(length).decode())
+            try:
+                if self.path == "/student":
+                    create_student(
+                        form.get("name", [""])[0],
+                        form.get("student_id", [""])[0],
+                        data_file,
+                    )
+                    message = "Student profile created."
+                elif self.path == "/check-in":
+                    check_in_student(
+                        form.get("student_id", [""])[0],
+                        form.get("status", ["Present"])[0],
+                        data_file=data_file,
+                    )
+                    message = "Attendance recorded."
+                else:
+                    message = "Unknown form."
+            except (OSError, ValueError) as error:
+                message = f"Error: {error}"
+            self.send_page(message)
+
+        def send_page(self, message=""):
+            content = page(data_file, message).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+
+        def log_message(self, format, *args):
+            return
+
+    print(f"Attendance app running at http://localhost:{port}")
+    HTTPServer(("localhost", port), AttendanceHandler).serve_forever()
 
 
 if __name__ == "__main__":
-    run_cli()
+    run_web_app()

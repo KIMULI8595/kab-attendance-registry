@@ -4,16 +4,18 @@ The roster/check-in module is implemented in Python and stores data locally in
 `attendance_log.json`. It supports creating student profiles, recording a
 daily `Present` or `Late` check-in, and listing students checked in today.
 
-## Run
+## Run the web application
 
-```text
+```bash
 python app.py
 ```
 
-The JSON file is created automatically the first time a student profile is
-saved. Run the roster tests with:
+Open `http://localhost:8000` in a browser. The JSON file is created
+automatically when a student profile is saved.
 
-```text
+Run the roster tests with:
+
+```bash
 python -m unittest -v
 ```
 
