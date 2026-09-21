@@ -55,7 +55,7 @@ def mark_absent(student_ids, school_day=None, log_file=DEFAULT_LOG_FILE):
             )
 
     save_records(records, log_file)
-    return recordschro
+    return records
 
 
 def attendance_rate(student_id, total_school_days, log_file=DEFAULT_LOG_FILE):
