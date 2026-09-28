@@ -13,18 +13,29 @@ def load_records(log_file=DEFAULT_LOG_FILE):
         return []
 
     with path.open("r", encoding="utf-8") as file:
-        records = json.load(file)
+        payload = json.load(file)
 
-    if not isinstance(records, list):
-        raise ValueError("Attendance log must contain a JSON list.")
-    return records
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict) and isinstance(payload.get("attendance"), list):
+        return payload["attendance"]
+    raise ValueError("Attendance log must contain a JSON list or object with attendance.")
 
 
 def save_records(records, log_file=DEFAULT_LOG_FILE):
     """Write attendance records to the local JSON file."""
     path = Path(log_file)
+    payload = records
+
+    if path.exists():
+        with path.open("r", encoding="utf-8") as file:
+            existing_payload = json.load(file)
+        if isinstance(existing_payload, dict):
+            existing_payload["attendance"] = records
+            payload = existing_payload
+
     with path.open("w", encoding="utf-8") as file:
-        json.dump(records, file, indent=2)
+        json.dump(payload, file, indent=2)
 
 
 def mark_absent(student_ids, school_day=None, log_file=DEFAULT_LOG_FILE):
